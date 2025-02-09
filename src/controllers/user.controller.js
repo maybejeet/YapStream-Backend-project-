@@ -5,6 +5,9 @@ import { User } from "../models/users.model.js";
 import { uploadonCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken"
+import {v2 as cloudinary} from "cloudinary" 
+import { mongoose } from "mongoose";
+
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
         const user = await User.findOne(userId)
@@ -211,9 +214,11 @@ const changeCurrentPassword = asyncHandler( async (req, res)=>{
 })
 
 const getCurrentUser = asyncHandler( async (req,res) => {
+    console.log(req.user)
     return res
     .status(200)
-    .json(200, req.user, "Current user fetched successfully")
+    .json(new ApiResponse(200 , req.user , "Current user fetched successfully"))
+    // .json(200, req.user, "Current user fetched successfully")
 })
 
 const changeUserName = asyncHandler( async (req , res) => {
@@ -229,16 +234,17 @@ const changeUserName = asyncHandler( async (req , res) => {
         {new:true}
     ).select("-password")
 
-    res.status(200).json(new ApiResponse(200, user , "username changed successfully"))
+    // return res.status(200).json(new ApiResponse(200, user , "username changed successfully"))
+    return res.status(200).json(new ApiResponse(200 , user , "Username changed successfully"))
 })
 
-const changeFullName = asyncHandler( (req,res)=>{
+const changeFullName = asyncHandler( async (req,res)=>{
     const {newFullName} = req.body
-    if(!newUsenewFullNamerName){
+    if(!newFullName){
         throw new ApiError(401, "New fullname required")
     }
 
-    const user = User.findByIdAndUpdate(req.user?._id , {
+    const user = await User.findByIdAndUpdate(req.user?._id , {
         $set:{fullName: newFullName}
     },{new:true}).select("-password")
 
@@ -248,16 +254,34 @@ const changeFullName = asyncHandler( (req,res)=>{
 const updateUserAvatar = asyncHandler( async (req,res)=>{
     //req.files when more than one entry
     //req.file for only one
+    // console.log("REQUEST.FILE",req.file); gives the local public path
+    
     const avatarLocalPath = req.file?.path
     if(!avatarLocalPath){
         throw new ApiError(401, "Avatar file missing")
     };
     const avatar = await uploadonCloudinary(avatarLocalPath)
+    // console.log("Avatar" , avatar);
+    
     if(!avatar.url){
         throw new ApiError(401, "Error while uploading avatar")
     }
+    // console.log(req.user);
+    
+    const oldAvatar = req.user?.avatar
+     console.log("old avatar" , oldAvatar);
+    
+     if (oldAvatar) {
+        const oldAvatarPublicId = oldAvatar.split('/').pop().split('.')[0]; // Extracts Cloudinary public ID
+        try {
+            await cloudinary.uploader.destroy(oldAvatarPublicId);
+            console.log("Old avatar deleted from Cloudinary");
+        } catch (error) {
+            // console.error("Error deleting old avatar:", error);
+            throw new ApiError(500 , "Error deleting old avatar")
+        }
+    }
     const user = await User.findByIdAndUpdate(req.user?._id,{$set:{avatar: avatar.url}},{new:true}).select("-password")
-
 
     return res.status(200).json(new ApiResponse(200 , user , "Avatar changed successfully"))
 })
@@ -336,7 +360,58 @@ const getUserChannelProfile = asyncHandler(async (req,res)=>{
 })
 
 const getWatchHistory = asyncHandler(async (req,res) => {
+    // console.log(req.user);
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
 
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            user[0].watchHistory,
+            "Watch history fetched successfully"
+        )
+    )
 })
 
 export {
@@ -349,7 +424,8 @@ export {
     changeUserName,
     changeFullName,
     updateUserAvatar,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 }
 
 
