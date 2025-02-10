@@ -28,4 +28,6 @@ videoRouter.route("/update/c/:videoId").post(verifyJWT , upload.single("thumbnai
 videoRouter.route("/toggle-publish/c/:videoId").get(verifyJWT , togglePublishStatus)
 videoRouter.route("/get-all-videos").get(verifyJWT , getAllVideos)
 videoRouter.route("/delete-video/c/:videoId").delete(verifyJWT , deleteVideo)
+
+
 export default videoRouter

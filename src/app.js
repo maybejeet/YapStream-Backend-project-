@@ -16,11 +16,13 @@ app.use(cookieParser())
 //routes import
 import userRouter from "./routes/user.routes.js"
 import videoRouter from "./routes/video.routes.js";
+import tweetRouter from "./routes/tweet.routes.js";
 
 
 //routes declaration
 app.use("/vidtube-v2/api/v1/users" , userRouter)
 app.use("/vidtube-v2/api/v1/videos" , videoRouter)
+app.use("/vidtube-v2/api/v1/tweets" , tweetRouter)
 
 
 export { app }
