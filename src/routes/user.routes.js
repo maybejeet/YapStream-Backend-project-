@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { changeFullName, changeUserName, getCurrentUser, getUserChannelProfile, loginUser, logOutUser, RefreshAccessToken, registerUser, updateUserAvatar } from "../controllers/user.controller.js";
+import { changeFullName, changeUserName, getCurrentUser, getUserChannelProfile, loginUser, logOutUser, RefreshAccessToken, registerUser, updateUserAvatar, changeCurrentPassword , getWatchHistory } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -24,11 +24,9 @@ userRouter.route("/change-password").post(verifyJWT , changeCurrentPassword)
 userRouter.route("/current-user").get(verifyJWT , getCurrentUser)
 userRouter.route("/change-username").patch(verifyJWT , changeUserName)
 userRouter.route("/change-fullname").patch(verifyJWT , changeFullName)
-
 userRouter.route("/change-avatar").patch(verifyJWT , upload.single("avatar") , updateUserAvatar)
-
 userRouter.route("/c/:userName").get(verifyJWT , getUserChannelProfile)
-
+userRouter.route("/history").get(verifyJWT, getWatchHistory)
 
 
 export default userRouter
