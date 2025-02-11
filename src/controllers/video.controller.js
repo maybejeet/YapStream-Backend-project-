@@ -153,9 +153,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     //filtering
     const filter = {}
-    // if(!query){
-    //     throw new ApiError(400 , "Enter query to perform the search")
-    // }
+    
     if(query){
         filter.$or = [
             {
