@@ -7,15 +7,19 @@
 
 import mongoose from "mongoose";
 import { Comment } from "../models/comments.model.js";
+import { Video } from "../models/videos.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 
 const addComment = asyncHandler(async (req , res) => {
     const { videoId } = req.params
-    // const validVideoId = await new mongoose.Types.ObjectId.isValid(videoId)
     if(!(videoId.trim())){
             throw new ApiError(400 , "videoId is missing from params")
+    }
+    const Fetchedvideo = await Video.findById(videoId)
+    if(!Fetchedvideo){
+        throw new ApiError(400 , 'Video not found')
     }
 
     const { content } = req.body
@@ -23,71 +27,46 @@ const addComment = asyncHandler(async (req , res) => {
         throw new ApiError(400 , "Comment content missing")
     }
 
-    let comment =  await Comment.create({
+    const comment =  await Comment.create({
         content,
-        owner : req.user._id,
+        owner : req.user?._id,
+        video : Fetchedvideo?._id
         
     })
-
-    const userComment = await Comment.aggregate([
-    {
-        $match:{
-           video: new mongoose.Types.ObjectId(videoId)
-        } 
-    },
-    {
-        $lookup: {
-            from: "videos",
-            localField: "video",
-            foreignField: "_id",
-            as: "video"
-        }
-    },
-    {
-         $unwind: "$video"
-    },
-    {
-        $addFields: {
-            video: "$video._id"
-        }
-    },
-    {
-        $project: {
-            _id: 1,
-            content: 1,
-            video: 1,
-            owner: 1
-        }
-    }
-])
-console.log(userComment);
-// console.log(comment);
-
 
     return res
     .status(200)
     .json(
         new ApiResponse(
             200,
-            userComment,
+            comment,
             "Comment added successfully"
         )
     )
 })
 
 const deleteComment = asyncHandler(async (req , res) => {
-    const {commentId} = req.params
-    if(!mongoose.Types.ObjectId.isValid(commentId)){
-        throw new ApiError (400 , "Comment not found")
+    const {commentId , videoId} = req.params
+    if([commentId , videoId].some((field) => field.trim()) == ""){
+        throw new ApiError(400 , "videoId or commentId is missing from params")
+    }
+    const fetchedVideo = await Video.findById(videoId)
+    if(!fetchedVideo){
+        throw new ApiError(400 , "Video for the comment does not exist")
     }
 
-    const comment = await Comment.findByIdAndDelete(commentId)
-
+    const comment = await Comment.findById(commentId)
+    if(!(comment.owner.equals(req.user?._id))){
+        throw new ApiError(400 , "Unauthorized: Cannot delete someone else comment")
+    }
+        
+         const Deletedcomment = await Comment.findByIdAndDelete(commentId)
+    
     return res
     .status(200)
     .json(
         new ApiResponse(200,
-            comment,
+            Deletedcomment,
             "Comment deleted successfully"
         )
     )
@@ -135,3 +114,25 @@ Pipeline lagana hoga
 //         }
 //     }
 // ])
+
+   // const commentOwner = await Comment.aggregate([
+    //     {
+    //         $match: { owner: new mongoose.Types.ObjectId(req.user?._id) }
+    //     },
+    //     {
+    //         $lookup: {
+    //             from: "users",
+    //             localField: "owner",
+    //             foreignField: "_id",
+    //             as: "ownerDetails"
+    //         }
+    //     },
+    //     {
+    //         $unwind: "$ownerDetails"
+    //     },
+    //     {
+    //         $project: {
+    //             "ownerDetails._id": 1
+    //         }
+    //     }
+    // ])
