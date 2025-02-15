@@ -87,6 +87,9 @@ const updateVideo = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Error while uploading thumbnail")
     }
     let video = await Video.findById(videoId)
+    if(!(video._id.equals(req.user?._id))){
+        throw new ApiError(400 , "Unauthorized : Cannot updated someone else video")
+    }
     const oldThumbnail = video.thumbnail
     // console.log(oldThumbnail);
     
